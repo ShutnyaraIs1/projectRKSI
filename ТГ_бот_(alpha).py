@@ -32,3 +32,5 @@ def website (massage):
     bot.send_message(massage.chat.id, "Передите на сайт!",reply_markup= markup)
 
 bot.polling(none_stop=True)
+
+## @NewSunrise4_bot - токен этого бота
