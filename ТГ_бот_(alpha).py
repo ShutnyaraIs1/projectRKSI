@@ -1,36 +1,63 @@
 import telebot
-from telebot import types
+import sqlite3
 
-bot = telebot.TeleBot('6568755149:AAELZ9yLNm56n3jsGDFoZhJlkxnq1LJTsGc')
-
-
-@bot.message_handler(commands=['старт'])
-def start(massage):
-    bot.send_message(massage.chat.id, "Добро пожаловать в студенческий бот NewSunrise", parse_mode='html')
+bot = telebot.TeleBot('6987424211:AAFORNgk3wEzZDPW7OI2SvXne7uiU5gdPrM')
+name = None
+surname = None
 
 
-@bot.message_handler(content_types=['text'])
-def get_user_text(massage):
-    if massage.text == "Привет":
-        bot.send_message(massage.chat.id, 'и тебе привет!', parse_mode='html')
-    elif massage.text == 'id':
-        bot.send_message(massage.chat.id, f'Твой ID: {massage.from_user.id}', parse_mode='html')
-    elif massage.text == "photo":
-        photo = open("int.png", 'rb')
-        bot.send_photo(massage.chat.id, photo)
-    else:
-        bot.send_message(massage.chat.id, 'Я тебя не понимаю', parse_mode='html')
+@bot.message_handler(commands=['regstudent'])
+def start(message):
+    conn = sqlite3.connect('itproger.sql')
+    cur = conn.cursor()
 
-@bot.message_handler(content_types=['photo'])
-def get_user_photo(massage):
-    bot.send_message(massage.chat.id,"Вау, крутое фото!")
+    cur.execute('CREATE TABLE IF NOT EXISTS users (id int auto_increment primary key, name varchar(50), surname varchar(50), pass varchar(50))')
+    conn.commit()
+    cur.close()
+    conn.close()
 
-@bot.message_handler(commands=['website'])
-def website (massage):
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton('Посетить веб сайт', url ='https://itproger.com'))
-    bot.send_message(massage.chat.id, "Передите на сайт!",reply_markup= markup)
+    bot.send_message(message.chat.id, 'Привет, сейчас тебя зарегистрируем! Введите Ваше имя')
+    bot.register_next_step_handler(message, user_name)
+def user_name(message):
+    global name
+    name = message.text.strip()
+    bot.send_message(message.chat.id, 'Введите фамилию')
+    bot.register_next_step_handler(message, user_surname)
+def user_surname(message):
+    global surname
+    surname = message.text.strip()
+    bot.send_message(message.chat.id, 'Введите пароль')
+    bot.register_next_step_handler(message, user_pass)
+def user_pass(message):
+    password = message.text.strip()
+
+    conn = sqlite3.connect('itproger.sql')
+    cur = conn.cursor()
+
+    cur.execute(f"INSERT INTO users (name, surname, pass) VALUES ('%s', '%s', '%s')" % (name, surname, password))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    markup = telebot.types.InlineKeyboardMarkup()
+    markup.add(telebot.types.InlineKeyboardButton('Список пользователей', callback_data='users'))
+    bot.send_message(message.chat.id, 'Пользователь зарегистрирован!', reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: True)
+def callback(call):
+    conn = sqlite3.connect('itproger.sql')
+    cur = conn.cursor()
+
+    cur.execute('SELECT * FROM users')
+    users = cur.fetchall()
+
+    info = ''
+    for el in users:
+        info += f'Имя: {el[1]}\nФамилия: {el[2]}\nПароль: {el[3]}\n'
+
+    cur.close()
+    conn.close()
+
+    bot.send_message(call.message.chat.id, info)
 
 bot.polling(none_stop=True)
-
-## @NewSunrise4_bot - токен этого бота
